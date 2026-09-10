@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ☕ COSTRA Coffee — E-Commerce Website
 
-## Getting Started
+Official e-commerce website for **COSTRA Coffee** by **Swati Gruh Udhyog**. Built with Next.js 14 App Router, TypeScript, Tailwind CSS, and Razorpay Payment Gateway integration.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Features
+
+- **Artisanal Coffee Catalog**: Browse South Indian Filter Coffee blends, Arabica whole beans, and instant coffee.
+- **Single Product Detail View**: High-resolution, consistent product gallery viewer with lightbox zoom.
+- **Razorpay Payment Integration**: Integrated server-side order creation and HMAC-SHA256 signature verification.
+- **Direct WhatsApp Orders**: Instant checkout via formatted WhatsApp order messaging (+91 83603 22894 / +91 87340 82232).
+- **SEO & Schema Markup**: Dynamic metadata, OpenGraph cards, JSON-LD Schema.org (`Organization`, `LocalBusiness`, `Product`, `BreadcrumbList`), dynamic XML `sitemap.xml`, and `robots.txt`.
+- **Responsive Mobile First UI**: Clean layout built with Tailwind CSS and Framer Motion animations.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Icons & Animations**: Lucide React, Framer Motion
+- **Payments**: Razorpay Node.js SDK
+- **State Management**: Zustand
+
+---
+
+## 📦 Environment Variables Setup
+
+Create a `.env.local` file in the root directory:
+
+```env
+# Razorpay Credentials
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_YOUR_KEY_ID
+RAZORPAY_KEY_ID=rzp_test_YOUR_KEY_ID
+RAZORPAY_KEY_SECRET=YOUR_TEST_KEY_SECRET
+
+# Website Base URL
+NEXT_PUBLIC_SITE_URL=https://costracoffee.com
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🏃 Quick Start
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. Run development server:
+   ```bash
+   npm run dev
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Build for production:
+   ```bash
+   npm run build
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 📄 License & Ownership
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Formulated by **Swati Gruh Udhyog** (FSSAI Lic. No: `20726032000830`). All rights reserved.
