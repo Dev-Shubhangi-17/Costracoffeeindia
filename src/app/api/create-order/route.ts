@@ -7,10 +7,13 @@ export async function POST(request: Request) {
     const { amount, currency = "INR", receipt } = body;
 
     // 1. Determine amount in paise (minimum 100 paise = 1 INR)
+    // If amount is passed in INR (e.g. 199), convert to paise (19900).
     let amountInPaise = amount;
     if (typeof amount === "number" && amount < 100) {
       amountInPaise = Math.round(amount * 100);
     } else if (typeof amount === "number") {
+      // If passed e.g. 199 in INR, check if it was intended as INR or paise
+      // If user passes 199, amount * 100 = 19900 paise
       amountInPaise = amount < 1000 ? Math.round(amount * 100) : Math.round(amount);
     }
 
@@ -25,9 +28,9 @@ export async function POST(request: Request) {
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
-      console.error("Razorpay API Error: Missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET in environment variables.");
+      console.error("Razorpay Error: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET missing.");
       return NextResponse.json(
-        { success: false, error: "Razorpay authentication failed. Missing API credentials." },
+        { success: false, error: "Razorpay authentication failed. Missing credentials." },
         { status: 401 }
       );
     }
@@ -43,7 +46,6 @@ export async function POST(request: Request) {
       receipt: receipt || `receipt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       notes: {
         store: "COSTRA Coffee",
-        brand: "Swati Gruh Udhyog",
       },
     };
 
@@ -58,13 +60,10 @@ export async function POST(request: Request) {
       keyId: keyId,
     });
   } catch (error: unknown) {
-    console.error("Razorpay Order Creation Exception:", error);
-    const errorMessage = error instanceof Error ? error.message : "Failed to create Razorpay payment order.";
+    console.error("Razorpay Order Creation Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to create Razorpay order.";
     return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

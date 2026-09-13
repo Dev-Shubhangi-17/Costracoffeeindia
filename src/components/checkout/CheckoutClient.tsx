@@ -189,7 +189,7 @@ export default function CheckoutClient() {
         return;
       }
 
-      const activeKeyId = data.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TQME3wFIlmGVri";
+      const activeKeyId = data.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_TbS1uK1j9zfnaC";
       const siteOrigin = typeof window !== "undefined" ? window.location.origin : "";
 
       // Step 2: Configure Razorpay Checkout modal options
