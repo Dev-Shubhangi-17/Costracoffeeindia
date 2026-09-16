@@ -190,9 +190,14 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5 text-[11px] font-bold text-gray-600">
               <li>
-                <a href="#origins" className="hover:text-[#F5B800] transition-colors no-underline">
-                  About Our Origins
-                </a>
+                <Link href="/track" className="hover:text-[#F5B800] transition-colors no-underline">
+                  Track Your Order
+                </Link>
+              </li>
+              <li>
+                <Link href="/admin/orders" className="hover:text-[#F5B800] transition-colors no-underline">
+                  Admin Portal
+                </Link>
               </li>
               <li>
                 <a href="#brew-guide-section" className="hover:text-[#F5B800] transition-colors no-underline">

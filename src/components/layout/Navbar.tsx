@@ -11,6 +11,7 @@ const navLinks = [
   { label: "SHOP", href: "/#shop-catalog" },
   { label: "ORIGINS", href: "/#origins" },
   { label: "ABOUT", href: "/about" },
+  { label: "TRACK ORDER", href: "/track" },
   { label: "BREWING GUIDES", href: "/#brew-guide-section" },
   { label: "CONTACT", href: "/#contact" },
 ];

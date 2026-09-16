@@ -38,6 +38,7 @@ export default function CheckoutClient() {
   const [isOrdering, setIsOrdering] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [confirmedPublicOrderId, setConfirmedPublicOrderId] = useState<string>("");
 
   const subtotal = getSubtotal();
   const isCartEmpty = cart.length === 0;
@@ -138,14 +139,16 @@ export default function CheckoutClient() {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPaymentError(null);
 
-    if (!formData.name || !formData.phone || !formData.pincode || !formData.address) {
-      setPaymentError("Please fill out all required shipping details.");
+    if (!formData.name.trim() || !formData.phone.trim() || !formData.pincode.trim() || !formData.address.trim()) {
+      setPaymentError("Please fill out all required shipping fields before placing your order.");
       return;
     }
 
+    setPaymentError(null);
+
     const orderItems = cart.map((item) => ({
+      id: item.id || item.productId,
       productId: item.productId,
       name: item.name,
       price: item.price,
@@ -174,11 +177,17 @@ export default function CheckoutClient() {
         return;
       }
 
-      // Step 1: Create Razorpay Order via backend API
+      // Step 1: Create Razorpay Order via backend API with customer details
       const response = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: grandTotal }),
+        body: JSON.stringify({
+          amount: grandTotal,
+          customerName: formData.name,
+          customerPhone: formData.phone.replace(/\D/g, ""),
+          items: orderItems,
+          shippingAddress: `${formData.address}, ${formData.city} - ${formData.pincode}`,
+        }),
       });
 
       const data = await response.json();
@@ -191,6 +200,9 @@ export default function CheckoutClient() {
 
       const activeKeyId = data.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_TbTAf4ZPh03a1b";
       const siteOrigin = typeof window !== "undefined" ? window.location.origin : "";
+      if (data.publicOrderId || data.public_order_id) {
+        setConfirmedPublicOrderId(data.publicOrderId || data.public_order_id);
+      }
 
       // Step 2: Configure Razorpay Checkout modal options
       const options = {
@@ -227,6 +239,9 @@ export default function CheckoutClient() {
             const verifyData = await verifyRes.json();
 
             if (verifyData.success) {
+              if (verifyData.publicOrderId) {
+                setConfirmedPublicOrderId(verifyData.publicOrderId);
+              }
               trackPurchase(`razorpay_${paymentResponse.razorpay_payment_id}`, orderItems, grandTotal);
               clearCart();
               setIsSuccess(true);
@@ -283,15 +298,29 @@ export default function CheckoutClient() {
             <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
           </div>
           <div className="space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#F5B800] block">
+              Payment Confirmed
+            </span>
             <h2 className="text-2xl font-black text-brand-charcoal font-heading">Order Placed Successfully!</h2>
+            {confirmedPublicOrderId && (
+              <div className="p-3 bg-[#FAF9F5] border border-[#E5E7EB] rounded-2xl font-mono text-sm font-black text-brand-charcoal">
+                Order #{confirmedPublicOrderId}
+              </div>
+            )}
             <p className="text-xs text-brand-charcoal/60 leading-relaxed font-semibold">
-              Thank you for shopping with COSTRA. Your order has been registered and is being processed. Updates will be sent to <strong className="text-brand-charcoal">{formData.phone}</strong>.
+              Thank you for shopping with COSTRA. Your order is confirmed and being prepared. Order updates will be sent to <strong className="text-brand-charcoal">{formData.phone}</strong>.
             </p>
           </div>
-          <div className="pt-2">
+          <div className="space-y-3 pt-2">
+            <Link
+              href={`/track?id=${confirmedPublicOrderId}&phone=${encodeURIComponent(formData.phone)}`}
+              className="bg-[#F5B800] hover:bg-[#EAA000] text-black font-extrabold text-xs tracking-wider uppercase px-8 py-3.5 rounded-2xl shadow-md transition-all duration-200 block cursor-pointer"
+            >
+              Track Order Live
+            </Link>
             <Link
               href="/"
-              className="bg-[#F5B800] hover:bg-[#EAA000] text-black font-extrabold text-xs tracking-wider uppercase px-8 py-3.5 rounded-2xl shadow-md transition-all duration-200 inline-block cursor-pointer"
+              className="bg-brand-neutral hover:bg-gray-200 text-brand-charcoal font-extrabold text-xs tracking-wider uppercase px-8 py-3 rounded-2xl transition-all duration-200 block cursor-pointer"
             >
               Continue Shopping
             </Link>

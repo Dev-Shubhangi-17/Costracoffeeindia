@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { getOrderById, updateOrderRecord } from "@/lib/orders";
+import { NotificationService } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -8,7 +10,6 @@ export async function POST(request: Request) {
     const razorpay_payment_id = body.razorpay_payment_id || body.payment_id;
     const razorpay_signature = body.razorpay_signature || body.signature;
 
-    // 1. Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
         { success: false, error: "Missing required Razorpay parameters (order_id, payment_id, signature)." },
@@ -25,25 +26,40 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Compute HMAC-SHA256 signature
     const signatureBody = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto
       .createHmac("sha256", keySecret)
       .update(signatureBody)
       .digest("hex");
 
-    // 3. Timing-safe comparison
     const isAuthentic = crypto.timingSafeEqual(
       Buffer.from(expectedSignature, "utf-8"),
       Buffer.from(razorpay_signature, "utf-8")
     );
 
     if (isAuthentic) {
+      // Update order status in database / persistence store
+      const order = await getOrderById(razorpay_order_id);
+      const publicOrderId = order?.publicOrderId;
+
+      if (order) {
+        const updated = await updateOrderRecord(order.publicOrderId, {
+          paymentStatus: "paid",
+          orderStatus: "payment_confirmed",
+          razorpayPaymentId: razorpay_payment_id,
+        });
+
+        if (updated) {
+          await NotificationService.sendOrderConfirmation(updated);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: "Payment verified successfully.",
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
+        publicOrderId: publicOrderId || razorpay_order_id,
       });
     } else {
       console.warn("Razorpay Verification Failed: Signature mismatch for order", razorpay_order_id);
