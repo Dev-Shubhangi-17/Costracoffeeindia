@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Lock, Search, Filter, RefreshCw, Eye } from "lucide-react";
 import { OrderRecord, OrderStatus } from "@/lib/orders";
 
@@ -22,24 +22,34 @@ export default function AdminOrdersClient() {
     }
   };
 
-  const fetchOrders = async (key: string) => {
-    setLoading(true);
+  const fetchOrders = async (key: string, isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/admin/orders?secretKey=${encodeURIComponent(key)}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
         setOrders(data.orders);
-      } else {
+      } else if (!isSilent) {
         setError(data.error || "Failed to load orders. Please verify admin key.");
       }
     } catch (err) {
       console.error(err);
-      setError("Network error fetching orders.");
+      if (!isSilent) setError("Network error fetching orders.");
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated || !secretKey) return;
+
+    const interval = setInterval(() => {
+      fetchOrders(secretKey, true);
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, secretKey]);
 
   const handleStatusChange = async (publicOrderId: string, newStatus: OrderStatus) => {
     setUpdatingId(publicOrderId);
