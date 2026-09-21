@@ -60,14 +60,40 @@ export function getWhatsAppNotificationLink(phone: string, message: string): str
   return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 }
 
-/**
- * Helper to dispatch SMS / WhatsApp via HTTP API if environment variables are set
- */
 async function dispatchExternalNotification(recipient: string, message: string, orderId: string): Promise<void> {
   const fast2smsKey = process.env.FAST2SMS_API_KEY;
   const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+  const whatsappApiUrl = process.env.WHATSAPP_API_URL;
+  const whatsappToken = process.env.WHATSAPP_API_TOKEN;
 
-  // 1. Fast2SMS Provider Integration (India)
+  // 1. Direct Automated WhatsApp Provider API (e.g. UltraMsg / Green API / Meta Cloud API)
+  if (whatsappApiUrl && whatsappToken && recipient) {
+    try {
+      const cleanPhone = recipient.replace(/\D/g, "");
+      const formattedPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+
+      await fetch(whatsappApiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(whatsappToken ? { Authorization: `Bearer ${whatsappToken}` } : {}),
+        },
+        body: JSON.stringify({
+          token: whatsappToken,
+          to: formattedPhone,
+          phone: formattedPhone,
+          body: message,
+          message: message,
+          orderId: orderId,
+        }),
+      });
+      console.log(`[WhatsApp API] Dispatched automated WhatsApp notification to +${formattedPhone}`);
+    } catch (err) {
+      console.error("[WhatsApp API] Error sending WhatsApp message:", err);
+    }
+  }
+
+  // 2. Fast2SMS Provider Integration (India SMS)
   if (fast2smsKey && recipient) {
     try {
       const cleanPhone = recipient.replace(/\D/g, "").slice(-10);
@@ -90,7 +116,7 @@ async function dispatchExternalNotification(recipient: string, message: string, 
     }
   }
 
-  // 2. Generic Notification Webhook Provider
+  // 3. Generic Notification Webhook Provider (Zapier / Interakt / Make.com)
   if (webhookUrl) {
     try {
       await fetch(webhookUrl, {
@@ -100,6 +126,7 @@ async function dispatchExternalNotification(recipient: string, message: string, 
           recipient,
           message,
           orderId,
+          channel: "whatsapp",
           timestamp: new Date().toISOString(),
         }),
       });

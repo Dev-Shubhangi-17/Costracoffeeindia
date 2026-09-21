@@ -318,6 +318,19 @@ export default function CheckoutClient() {
             >
               Track Order Live
             </Link>
+
+            <a
+              href={`https://wa.me/918360322894?text=${encodeURIComponent(
+                `Hi Costra Coffee! I placed order #${confirmedPublicOrderId || ""}. Please send me order updates on WhatsApp!`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#25D366] hover:bg-[#20bd5a] text-white font-extrabold text-xs tracking-wider uppercase px-8 py-3.5 rounded-2xl shadow-md transition-all duration-200 flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4 fill-white" />
+              <span>Get Updates on WhatsApp</span>
+            </a>
+
             <Link
               href="/"
               className="bg-brand-neutral hover:bg-gray-200 text-brand-charcoal font-extrabold text-xs tracking-wider uppercase px-8 py-3 rounded-2xl transition-all duration-200 block cursor-pointer"
