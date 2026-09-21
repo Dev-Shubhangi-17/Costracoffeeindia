@@ -18,7 +18,7 @@ export function buildCustomerOrderConfirmationMsg(order: OrderRecord): string {
 Your Costra Coffee order #${order.publicOrderId} has been confirmed.
 Order Amount: ₹${order.totalAmount}
 Payment: ${order.paymentStatus === "paid" ? "Successful" : "Pending"}
-We'll keep you updated on your order status.
+Track your order here: ${process.env.NEXT_PUBLIC_SITE_URL || "https://www.costracoffeeindia.com"}/track?id=${order.publicOrderId}&phone=${encodeURIComponent(order.customerPhone)}
 Thank you for ordering from Costra Coffee!`;
 }
 
@@ -33,25 +33,85 @@ Status: ${order.orderStatus}`;
 }
 
 export function buildStatusUpdateMsg(order: OrderRecord, status: OrderStatus): string {
+  const trackingUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.costracoffeeindia.com"}/track?id=${order.publicOrderId}&phone=${encodeURIComponent(order.customerPhone)}`;
+  
   switch (status) {
     case "preparing":
-      return `Your Costra order #${order.publicOrderId} is now being prepared ☕`;
+      return `Hi ${order.customerName}, your Costra Coffee order #${order.publicOrderId} is now being prepared ☕! Track live: ${trackingUrl}`;
     case "ready":
-      return `Your Costra order #${order.publicOrderId} is ready!`;
+      return `Hi ${order.customerName}, your Costra Coffee order #${order.publicOrderId} is ready 📦! Track live: ${trackingUrl}`;
     case "out_for_delivery":
-      return `Your Costra order #${order.publicOrderId} is out for delivery 🚴`;
+      return `Hi ${order.customerName}, your Costra Coffee order #${order.publicOrderId} is out for delivery 🚴! Track live: ${trackingUrl}`;
     case "delivered":
-      return `Your Costra order #${order.publicOrderId} has been delivered. Thank you for ordering from Costra Coffee!`;
+      return `Hi ${order.customerName}, your Costra Coffee order #${order.publicOrderId} has been delivered. Thank you for ordering from Costra Coffee!`;
     case "cancelled":
-      return `Your Costra order #${order.publicOrderId} has been cancelled. Please contact support if you need help.`;
+      return `Hi ${order.customerName}, your Costra Coffee order #${order.publicOrderId} has been cancelled. Please contact support if you need help.`;
     default:
-      return `Your Costra order #${order.publicOrderId} status is now: ${status}`;
+      return `Hi ${order.customerName}, your Costra Coffee order #${order.publicOrderId} status is now: ${status}. Track live: ${trackingUrl}`;
+  }
+}
+
+/**
+ * Generate WhatsApp Web/App click-to-send link
+ */
+export function getWhatsAppNotificationLink(phone: string, message: string): string {
+  const cleanPhone = phone.replace(/\D/g, "");
+  const formattedPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+  return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Helper to dispatch SMS / WhatsApp via HTTP API if environment variables are set
+ */
+async function dispatchExternalNotification(recipient: string, message: string, orderId: string): Promise<void> {
+  const fast2smsKey = process.env.FAST2SMS_API_KEY;
+  const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+
+  // 1. Fast2SMS Provider Integration (India)
+  if (fast2smsKey && recipient) {
+    try {
+      const cleanPhone = recipient.replace(/\D/g, "").slice(-10);
+      await fetch("https://www.fast2sms.com/dev/bulkV2", {
+        method: "POST",
+        headers: {
+          authorization: fast2smsKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          route: "q",
+          message: message,
+          language: "english",
+          numbers: cleanPhone,
+        }),
+      });
+      console.log(`[Fast2SMS] Dispatched SMS to ${cleanPhone}`);
+    } catch (err) {
+      console.error("[Fast2SMS] Error sending SMS:", err);
+    }
+  }
+
+  // 2. Generic Notification Webhook Provider
+  if (webhookUrl) {
+    try {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient,
+          message,
+          orderId,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      console.log(`[NotificationWebhook] Dispatched webhook to ${webhookUrl}`);
+    } catch (err) {
+      console.error("[NotificationWebhook] Error sending webhook:", err);
+    }
   }
 }
 
 /**
  * Extensible Notification Service Abstraction
- * Handles dispatching alerts via Console, Webhooks, or configured SMS/WhatsApp/Email providers securely without exposing secrets.
  */
 export class NotificationService {
   /**
@@ -76,6 +136,9 @@ export class NotificationService {
     console.log(`To: +91 83603 22894 / +91 87340 82232`);
     console.log(adminMsg);
     console.log("=========================================");
+
+    // Dispatch via external gateway if configured
+    await dispatchExternalNotification(order.customerPhone, customerMsg, order.publicOrderId);
 
     // Store idempotency log
     sentNotificationsMap.set(key, {
@@ -106,6 +169,9 @@ export class NotificationService {
     console.log(`To: ${order.customerPhone}`);
     console.log(message);
     console.log("=========================================");
+
+    // Dispatch via external gateway if configured
+    await dispatchExternalNotification(order.customerPhone, message, order.publicOrderId);
 
     sentNotificationsMap.set(key, {
       orderId: order.id,

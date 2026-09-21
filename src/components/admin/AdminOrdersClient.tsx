@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, Search, Filter, RefreshCw, Eye } from "lucide-react";
+import { Lock, Search, Filter, RefreshCw, Eye, MessageCircle } from "lucide-react";
 import { OrderRecord, OrderStatus } from "@/lib/orders";
+import { getWhatsAppNotificationLink, buildCustomerOrderConfirmationMsg, buildStatusUpdateMsg } from "@/lib/notifications";
 
 export default function AdminOrdersClient() {
   const [secretKey, setSecretKey] = useState("");
@@ -239,85 +240,105 @@ export default function AdminOrdersClient() {
                   <th className="p-4">Amount</th>
                   <th className="p-4">Payment</th>
                   <th className="p-4">Order Status Action</th>
+                  <th className="p-4">Notify Customer</th>
                   <th className="p-4 text-right">Track Link</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 font-semibold">
                 {filteredOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-gray-400 font-bold">
+                    <td colSpan={9} className="p-8 text-center text-gray-400 font-bold">
                       No orders found matching the filter criteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredOrders.map((o) => (
-                    <tr key={o.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="p-4 font-mono font-black text-brand-charcoal text-sm">
-                        #{o.publicOrderId}
-                      </td>
-                      <td className="p-4 text-gray-500 text-[11px]">
-                        {new Date(o.createdAt).toLocaleString("en-IN", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                      </td>
-                      <td className="p-4">
-                        <span className="block font-extrabold text-brand-charcoal">{o.customerName}</span>
-                        <span className="block text-gray-500 text-[11px]">{o.customerPhone}</span>
-                      </td>
-                      <td className="p-4 text-gray-600 max-w-xs truncate">
-                        {o.items.map((i) => `${i.quantity}x ${i.name}`).join(", ")}
-                      </td>
-                      <td className="p-4 font-bold text-brand-coffee text-sm">
-                        ₹{o.totalAmount}
-                      </td>
-                      <td className="p-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                            o.paymentStatus === "paid"
-                              ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                        >
-                          {o.paymentStatus}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <select
-                            disabled={updatingId === o.publicOrderId}
-                            value={o.orderStatus}
-                            onChange={(e) =>
-                              handleStatusChange(o.publicOrderId, e.target.value as OrderStatus)
-                            }
-                            className="px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-brand-charcoal focus:outline-none focus:border-[#F5B800] disabled:opacity-50"
+                  filteredOrders.map((o) => {
+                    const waMessage = o.orderStatus === "payment_confirmed" || o.orderStatus === "order_placed"
+                      ? buildCustomerOrderConfirmationMsg(o)
+                      : buildStatusUpdateMsg(o, o.orderStatus);
+                    const waLink = getWhatsAppNotificationLink(o.customerPhone, waMessage);
+
+                    return (
+                      <tr key={o.id} className="hover:bg-gray-50/80 transition-colors">
+                        <td className="p-4 font-mono font-black text-brand-charcoal text-sm">
+                          #{o.publicOrderId}
+                        </td>
+                        <td className="p-4 text-gray-500 text-[11px]">
+                          {new Date(o.createdAt).toLocaleString("en-IN", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </td>
+                        <td className="p-4">
+                          <span className="block font-extrabold text-brand-charcoal">{o.customerName}</span>
+                          <span className="block text-gray-500 text-[11px]">{o.customerPhone}</span>
+                        </td>
+                        <td className="p-4 text-gray-600 max-w-xs truncate">
+                          {o.items.map((i) => `${i.quantity}x ${i.name}`).join(", ")}
+                        </td>
+                        <td className="p-4 font-bold text-brand-coffee text-sm">
+                          ₹{o.totalAmount}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                              o.paymentStatus === "paid"
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            }`}
                           >
-                            <option value="order_placed">Order Placed</option>
-                            <option value="payment_confirmed">Payment Confirmed</option>
-                            <option value="preparing">Preparing</option>
-                            <option value="ready">Ready</option>
-                            <option value="out_for_delivery">Out for Delivery</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                          {updatingId === o.publicOrderId && (
-                            <div className="w-3.5 h-3.5 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4 text-right">
-                        <a
-                          href={`/track?id=${o.publicOrderId}&phone=${o.customerPhone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center space-x-1 text-xs font-bold text-brand-charcoal hover:text-[#F5B800] underline"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View</span>
-                        </a>
-                      </td>
-                    </tr>
-                  ))
+                            {o.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center space-x-2">
+                            <select
+                              disabled={updatingId === o.publicOrderId}
+                              value={o.orderStatus}
+                              onChange={(e) =>
+                                handleStatusChange(o.publicOrderId, e.target.value as OrderStatus)
+                              }
+                              className="px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-brand-charcoal focus:outline-none focus:border-[#F5B800] disabled:opacity-50"
+                            >
+                              <option value="order_placed">Order Placed</option>
+                              <option value="payment_confirmed">Payment Confirmed</option>
+                              <option value="preparing">Preparing</option>
+                              <option value="ready">Ready</option>
+                              <option value="out_for_delivery">Out for Delivery</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            {updatingId === o.publicOrderId && (
+                              <div className="w-3.5 h-3.5 border-2 border-brand-yellow border-t-transparent rounded-full animate-spin" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <a
+                            href={waLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all cursor-pointer shadow-sm"
+                            title="Send WhatsApp confirmation / tracking update to customer"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>WhatsApp</span>
+                          </a>
+                        </td>
+                        <td className="p-4 text-right">
+                          <a
+                            href={`/track?id=${o.publicOrderId}&phone=${o.customerPhone}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1 text-xs font-bold text-brand-charcoal hover:text-[#F5B800] underline"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View</span>
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
