@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getSupabaseServerClient } from "./supabaseServer";
 
 export type PaymentStatus = "pending" | "paid" | "failed";
@@ -37,8 +39,62 @@ export interface OrderRecord {
   updatedAt: string;
 }
 
-// In-memory persistent store fallback for environments where Supabase is not yet configured
+// In-memory & file-based persistent store fallback
 const inMemoryOrdersMap = new Map<string, OrderRecord>();
+const TMP_FILE_PATH = path.join(process.env.TMPDIR || "/tmp", "costra_orders_store.json");
+
+function loadTmpStore(): Map<string, OrderRecord> {
+  const map = new Map<string, OrderRecord>();
+  // Sync with memory first
+  inMemoryOrdersMap.forEach((val, key) => map.set(key, val));
+  try {
+    if (fs.existsSync(TMP_FILE_PATH)) {
+      const content = fs.readFileSync(TMP_FILE_PATH, "utf8");
+      const list: OrderRecord[] = JSON.parse(content);
+      if (Array.isArray(list)) {
+        list.forEach((o) => {
+          map.set(o.publicOrderId, o);
+          map.set(o.id, o);
+          if (o.razorpayOrderId) map.set(o.razorpayOrderId, o);
+          inMemoryOrdersMap.set(o.publicOrderId, o);
+          inMemoryOrdersMap.set(o.id, o);
+          if (o.razorpayOrderId) inMemoryOrdersMap.set(o.razorpayOrderId, o);
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Disk store load warning:", err);
+  }
+  return map;
+}
+
+function saveTmpStore(record: OrderRecord) {
+  inMemoryOrdersMap.set(record.publicOrderId, record);
+  inMemoryOrdersMap.set(record.id, record);
+  if (record.razorpayOrderId) {
+    inMemoryOrdersMap.set(record.razorpayOrderId, record);
+  }
+
+  try {
+    const existing = loadTmpStore();
+    existing.set(record.publicOrderId, record);
+    existing.set(record.id, record);
+    if (record.razorpayOrderId) existing.set(record.razorpayOrderId, record);
+
+    const uniqueList: OrderRecord[] = [];
+    const seen = new Set<string>();
+    existing.forEach((val) => {
+      if (!seen.has(val.publicOrderId)) {
+        seen.add(val.publicOrderId);
+        uniqueList.push(val);
+      }
+    });
+
+    fs.writeFileSync(TMP_FILE_PATH, JSON.stringify(uniqueList, null, 2), "utf8");
+  } catch (err) {
+    console.warn("Disk store save warning:", err);
+  }
+}
 
 /**
  * Generate a clean, readable Public Order ID (e.g. COSTRA1024)
@@ -118,12 +174,8 @@ export async function createOrderRecord(
     }
   }
 
-  // 2. Always maintain fallback store
-  inMemoryOrdersMap.set(record.publicOrderId, record);
-  inMemoryOrdersMap.set(record.id, record);
-  if (record.razorpayOrderId) {
-    inMemoryOrdersMap.set(record.razorpayOrderId, record);
-  }
+  // 2. Always maintain fallback store (memory + disk)
+  saveTmpStore(record);
 
   return record;
 }
@@ -170,8 +222,9 @@ export async function getOrderById(idOrPublicId: string): Promise<OrderRecord | 
     }
   }
 
-  // 2. Fallback store lookup
-  return inMemoryOrdersMap.get(cleanId) || null;
+  // 2. Fallback store lookup (memory + disk)
+  const store = loadTmpStore();
+  return store.get(cleanId) || null;
 }
 
 /**
@@ -225,12 +278,8 @@ export async function updateOrderRecord(
     }
   }
 
-  // 2. Update memory store
-  inMemoryOrdersMap.set(existing.publicOrderId, updatedRecord);
-  inMemoryOrdersMap.set(existing.id, updatedRecord);
-  if (existing.razorpayOrderId) {
-    inMemoryOrdersMap.set(existing.razorpayOrderId, updatedRecord);
-  }
+  // 2. Update memory + disk store
+  saveTmpStore(updatedRecord);
 
   return updatedRecord;
 }
@@ -274,9 +323,10 @@ export async function getAllOrders(): Promise<OrderRecord[]> {
     }
   }
 
-  // 2. Return unique orders from fallback store
+  // 2. Return unique orders from fallback store (memory + disk)
+  const store = loadTmpStore();
   const uniqueMap = new Map<string, OrderRecord>();
-  inMemoryOrdersMap.forEach((val) => {
+  store.forEach((val) => {
     uniqueMap.set(val.publicOrderId, val);
   });
   return Array.from(uniqueMap.values()).sort(

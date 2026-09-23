@@ -233,6 +233,11 @@ export default function CheckoutClient() {
                 razorpay_order_id: paymentResponse.razorpay_order_id,
                 razorpay_payment_id: paymentResponse.razorpay_payment_id,
                 razorpay_signature: paymentResponse.razorpay_signature,
+                customerName: formData.name,
+                customerEmail: "",
+                customerPhone: formData.phone,
+                amount: grandTotal,
+                items: cart.map((i) => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
               }),
             });
 

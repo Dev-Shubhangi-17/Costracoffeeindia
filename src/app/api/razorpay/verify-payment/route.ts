@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { getOrderById, updateOrderRecord } from "@/lib/orders";
+import { getOrderById, updateOrderRecord, createOrderRecord, generatePublicOrderId } from "@/lib/orders";
 import { NotificationService } from "@/lib/notifications";
 
 export async function POST(request: Request) {
@@ -38,19 +38,35 @@ export async function POST(request: Request) {
     );
 
     if (isAuthentic) {
-      const order = await getOrderById(razorpay_order_id);
-      const publicOrderId = order?.publicOrderId;
+      let order = await getOrderById(razorpay_order_id);
 
-      if (order) {
-        const updated = await updateOrderRecord(order.publicOrderId, {
+      if (!order) {
+        const generatedPublicId = generatePublicOrderId();
+        order = await createOrderRecord({
+          publicOrderId: generatedPublicId,
+          customerName: body.customerName || "Valued Customer",
+          customerEmail: body.customerEmail || "",
+          customerPhone: body.customerPhone || "",
+          items: body.items || [],
+          subtotal: body.amount ? Math.round(body.amount / 100) : 0,
+          deliveryFee: 0,
+          totalAmount: body.amount ? Math.round(body.amount / 100) : 0,
+          currency: body.currency || "INR",
+          paymentStatus: "paid",
+          orderStatus: "payment_confirmed",
+          razorpayOrderId: razorpay_order_id,
+          razorpayPaymentId: razorpay_payment_id,
+        });
+      } else {
+        order = await updateOrderRecord(order.publicOrderId, {
           paymentStatus: "paid",
           orderStatus: "payment_confirmed",
           razorpayPaymentId: razorpay_payment_id,
         });
+      }
 
-        if (updated) {
-          await NotificationService.sendOrderConfirmation(updated);
-        }
+      if (order) {
+        await NotificationService.sendOrderConfirmation(order);
       }
 
       return NextResponse.json({
@@ -58,7 +74,7 @@ export async function POST(request: Request) {
         message: "Payment verified successfully.",
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
-        publicOrderId: publicOrderId || razorpay_order_id,
+        publicOrderId: order?.publicOrderId || razorpay_order_id,
       });
     } else {
       console.warn("Razorpay Verification Warning: Signature mismatch detected for order", razorpay_order_id);
