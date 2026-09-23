@@ -14,21 +14,23 @@ const sentNotificationsMap = new Map<string, NotificationLog>();
  * Format notification templates
  */
 export function buildCustomerOrderConfirmationMsg(order: OrderRecord): string {
+  const paymentIdStr = order.razorpayPaymentId ? `\nPayment ID: ${order.razorpayPaymentId}` : "";
   return `Hi ${order.customerName}!
 Your Costra Coffee order #${order.publicOrderId} has been confirmed.
 Order Amount: ₹${order.totalAmount}
-Payment: ${order.paymentStatus === "paid" ? "Successful" : "Pending"}
+Payment Status: ${order.paymentStatus === "paid" ? "Successful" : "Pending"}${paymentIdStr}
 Track your order here: ${process.env.NEXT_PUBLIC_SITE_URL || "https://www.costracoffeeindia.com"}/track?id=${order.publicOrderId}&phone=${encodeURIComponent(order.customerPhone)}
 Thank you for ordering from Costra Coffee!`;
 }
 
 export function buildAdminOrderNotificationMsg(order: OrderRecord): string {
+  const paymentIdStr = order.razorpayPaymentId ? `\nPayment ID: ${order.razorpayPaymentId}` : "";
   return `New Costra Order
 Order #${order.publicOrderId}
 Customer: ${order.customerName}
 Phone: ${order.customerPhone}
 Amount: ₹${order.totalAmount}
-Payment: ${order.paymentStatus === "paid" ? "Successful" : "Pending"}
+Payment Status: ${order.paymentStatus === "paid" ? "Successful" : "Pending"}${paymentIdStr}
 Status: ${order.orderStatus}`;
 }
 
