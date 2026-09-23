@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getAllOrders, updateOrderRecord, createOrderRecord, getOrderById, generatePublicOrderId, OrderStatus } from "@/lib/orders";
 import { NotificationService } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || "costra_admin_secret_2026";
 
 function authenticateAdmin(request: Request): boolean {
@@ -35,6 +38,7 @@ async function syncRazorpayOrders(): Promise<void> {
       headers: {
         Authorization: authHeader,
       },
+      cache: "no-store",
     });
 
     if (!res.ok) {
@@ -46,8 +50,9 @@ async function syncRazorpayOrders(): Promise<void> {
 
     for (const p of payments) {
       if (p.status === "captured" || p.status === "authorized") {
-        const orderIdToLookup = p.order_id || p.id;
-        const existing = await getOrderById(orderIdToLookup);
+        let existing = null;
+        if (p.id) existing = await getOrderById(p.id);
+        if (!existing && p.order_id) existing = await getOrderById(p.order_id);
 
         if (!existing) {
           const publicOrderId = p.notes?.publicOrderId || generatePublicOrderId();
@@ -72,7 +77,7 @@ async function syncRazorpayOrders(): Promise<void> {
             currency: p.currency || "INR",
             paymentStatus: "paid",
             orderStatus: "payment_confirmed",
-            razorpayOrderId: p.order_id || "",
+            razorpayOrderId: p.order_id || p.id,
             razorpayPaymentId: p.id,
             shippingAddress: p.notes?.address || "",
           });

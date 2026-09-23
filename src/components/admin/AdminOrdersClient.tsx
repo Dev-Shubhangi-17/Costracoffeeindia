@@ -27,7 +27,10 @@ export default function AdminOrdersClient() {
     if (!isSilent) setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/orders?secretKey=${encodeURIComponent(key)}`);
+      const res = await fetch(`/api/admin/orders?secretKey=${encodeURIComponent(key)}&_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
         setOrders(data.orders);
