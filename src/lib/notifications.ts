@@ -54,11 +54,26 @@ export function buildStatusUpdateMsg(order: OrderRecord, status: OrderStatus): s
 }
 
 /**
+ * Helper to clean and format Indian phone numbers for WhatsApp API / wa.me links
+ */
+export function formatIndianPhoneForWhatsApp(phone: string): string {
+  if (!phone) return "";
+  const digitsOnly = phone.replace(/\D/g, "").replace(/^0+/, "");
+  if (digitsOnly.length === 10) {
+    return `91${digitsOnly}`;
+  }
+  if (digitsOnly.length > 10 && digitsOnly.startsWith("91")) {
+    return digitsOnly;
+  }
+  const last10 = digitsOnly.slice(-10);
+  return last10 ? `91${last10}` : digitsOnly;
+}
+
+/**
  * Generate WhatsApp Web/App click-to-send link
  */
 export function getWhatsAppNotificationLink(phone: string, message: string): string {
-  const cleanPhone = phone.replace(/\D/g, "");
-  const formattedPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+  const formattedPhone = formatIndianPhoneForWhatsApp(phone);
   return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 }
 
@@ -71,8 +86,7 @@ async function dispatchExternalNotification(recipient: string, message: string, 
   // 1. Direct Automated WhatsApp Provider API (e.g. UltraMsg / Green API / Meta Cloud API)
   if (whatsappApiUrl && whatsappToken && recipient) {
     try {
-      const cleanPhone = recipient.replace(/\D/g, "");
-      const formattedPhone = cleanPhone.startsWith("91") ? cleanPhone : `91${cleanPhone}`;
+      const formattedPhone = formatIndianPhoneForWhatsApp(recipient);
 
       await fetch(whatsappApiUrl, {
         method: "POST",
