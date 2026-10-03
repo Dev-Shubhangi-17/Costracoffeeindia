@@ -180,8 +180,17 @@ export class NotificationService {
     console.log(adminMsg);
     console.log("=========================================");
 
-    // Dispatch via external gateway if configured
+    // Dispatch via external gateway to Customer
     await dispatchExternalNotification(order.customerPhone, customerMsg, order.publicOrderId);
+
+    // Dispatch Owner Admin SMS to 8734082232 and 8360322894
+    const ownerNumbers = ["8734082232", "8360322894"];
+    for (const ownerPhone of ownerNumbers) {
+      if (ownerPhone !== order.customerPhone) {
+        await dispatchExternalNotification(ownerPhone, adminMsg, order.publicOrderId);
+      }
+    }
+
 
     // Store idempotency log
     sentNotificationsMap.set(key, {
