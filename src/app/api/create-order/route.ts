@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { createOrderRecord, generatePublicOrderId } from "@/lib/orders";
+import { NotificationService } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +15,40 @@ export async function POST(request: Request) {
       customerPhone = "",
       items = [],
       shippingAddress = "",
+      isCod = false,
+      paymentMethod,
     } = body;
+
+    // Handle Cash on Delivery (COD) orders directly
+    if (isCod || paymentMethod === "cod") {
+      const publicOrderId = generatePublicOrderId();
+      const numAmount = typeof amount === "number" ? (amount < 1000 ? amount : Math.round(amount / 100)) : 0;
+      const codRecord = await createOrderRecord({
+        publicOrderId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        items,
+        subtotal: numAmount,
+        deliveryFee: 0,
+        totalAmount: numAmount,
+        currency,
+        paymentStatus: "pending",
+        orderStatus: "order_placed",
+        razorpayOrderId: `cod_${Date.now()}`,
+        shippingAddress,
+      });
+
+      // Dispatch order notification via SMS / WhatsApp
+      await NotificationService.sendOrderConfirmation(codRecord);
+
+      return NextResponse.json({
+        success: true,
+        public_order_id: publicOrderId,
+        publicOrderId: publicOrderId,
+      });
+    }
+
 
     // Determine amount in paise (minimum 100 paise = 1 INR)
     let amountInPaise = amount;

@@ -157,14 +157,37 @@ export default function CheckoutClient() {
 
     if (paymentMethod === "cod") {
       setIsOrdering(true);
-      setTimeout(() => {
-        setIsOrdering(false);
+      try {
+        const response = await fetch("/api/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: grandTotal,
+            customerName: formData.name,
+            customerPhone: formData.phone.replace(/\D/g, ""),
+            items: orderItems,
+            shippingAddress: `${formData.address}, ${formData.city} - ${formData.pincode}`,
+            isCod: true,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.publicOrderId || data.public_order_id) {
+          setConfirmedPublicOrderId(data.publicOrderId || data.public_order_id);
+        }
+
         trackPurchase(`cod_order_${Date.now()}`, orderItems, grandTotal);
         clearCart();
         setIsSuccess(true);
-      }, 1200);
+      } catch (err) {
+        console.error("COD order save error:", err);
+        setPaymentError("Network error while creating COD order. Please try again.");
+      } finally {
+        setIsOrdering(false);
+      }
       return;
     }
+
 
     // Razorpay Online / UPI Payment Flow
     setIsOrdering(true);
